@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Buff163 CYN Converter",
+  "author": "ey34",
+  "version": "1.0.0",
+  "description": "Convert CNY prices to USD on buff.163.com",
+  "content_scripts": [
+    {
+      "matches": ["https://buff.163.com/*"],
+      "js": ["Content.js"],
+      "icons": {
+       "48": "logo.jpg",
+       "96": "logo.jpg"
+      }
+    }
+  ]
+}
