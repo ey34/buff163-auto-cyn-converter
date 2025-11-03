@@ -3,6 +3,7 @@
 // -> version      1.0.0
 // // // // // // // //
 
+
 (function () {
   'use strict';
 
@@ -10,7 +11,6 @@
   const RATE_REFRESH_MS = 10 * 60 * 1000;
 
   let ratesCache = null;
-  let lastFetched = null;
   let currentCurrency = 'USD';
 
   function httpGetJson(url) {
@@ -61,8 +61,6 @@
         .then((data) => {
           if (data && data.rates && typeof data.rates === 'object') {
             ratesCache = data.rates;
-            lastFetched = data.time_last_update_unix ? new Date(data.time_last_update_unix * 1000).toUTCString() : new Date().toUTCString();
-            console.log('[CNY→USD] rates fetched:', { keys: Object.keys(ratesCache).slice(0,6) }, 'time:', lastFetched);
             resolve(ratesCache);
           } else {
             reject(new Error('Unexpected rate response'));
@@ -123,8 +121,6 @@
     if (!textNode || !textNode.nodeValue) return;
     const parent = textNode.parentNode;
     if (!parent || parent.closest && parent.closest('script, style, noscript')) return;
-
-    if (textNode.__cny_converted) return;
 
     const original = textNode.nodeValue;
     let match;
@@ -259,16 +255,8 @@
     }
   }
 
-  function injectTailwindPlayCDN() {
-    // Disabled due to site CSP; we don't rely on Tailwind inside Shadow DOM.
-    return;
-  }
-
   function createExtensionToggleUI() {
     try {
-      // Keep Tailwind injection for potential future use, but we won't rely on it inside Shadow DOM.
-      injectTailwindPlayCDN();
-
       const host = document.createElement('div');
       host.id = 'cny-usd-extension-host';
       host.style.position = 'fixed';
@@ -282,10 +270,8 @@
       const style = document.createElement('style');
       style.textContent = `
         :host { all: initial; }
-        /* Floating toggle button */
         .btn-icon{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:#141517;border:1px solid #2a2d34;box-shadow:0 4px 16px rgba(0,0,0,0.35);cursor:pointer;color:#e5e7eb}
         .btn-icon:hover{background:#181a1e}
-        /* Card */
         .card{min-width:280px;max-width:340px;background:#111215;border:1px solid #2a2a2a;border-radius:14px;box-shadow:0 12px 28px rgba(0,0,0,0.35);font-family:Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;color:#e5e7eb}
         .card-header{display:grid;grid-auto-rows:min-content;grid-template-rows:auto auto;gap:6px;align-items:start;padding:16px;border-bottom:1px solid #2a2a2a;position:relative}
         .card-title{font-weight:600;line-height:1.2;font-size:14px;color:#f3f4f6}
@@ -293,8 +279,6 @@
         .card-content{padding:16px;display:flex;flex-direction:column;gap:12px}
         .row{display:flex;flex-direction:column;gap:8px}
         .label{font-size:12px;color:#9ca3af}
-
-        /* Custom Select (animated, Radix-like) */
         .select-root{position:relative;display:inline-block}
         .select-trigger{display:inline-flex;align-items:center;justify-content:space-between;gap:8px;height:44px;min-width:220px;padding:0 14px;border:1px solid #2a2a2a;border-radius:10px;background:#1a1b1e;color:#e5e7eb;font-size:14px;cursor:pointer;outline:none;box-shadow:inset 0 1px 0 rgba(255,255,255,0.02)}
         .select-trigger:hover{background:#202225}
@@ -326,7 +310,6 @@
       panel.style.marginTop = '8px';
       container.appendChild(panel);
 
-      // Build Card structure
       const card = document.createElement('div');
       card.className = 'card';
 
@@ -382,19 +365,15 @@
         check.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
         item.appendChild(check);
         item.addEventListener('click', () => {
-          // Update selection
           currentCurrency = c;
           saveUserCurrencyPref(currentCurrency);
           selectLabelSpan.textContent = c;
           const v = header.querySelector('#cur-view');
           if (v) v.textContent = currentCurrency;
-          // Update item selected states
           selectList.querySelectorAll('.select-item[aria-selected="true"]').forEach((n)=>n.removeAttribute('aria-selected'));
           item.setAttribute('aria-selected','true');
-          // Apply updates
           updateAllConvertedSpans();
-          
-          // Close
+
           closeSelect();
         });
         selectList.appendChild(item);
@@ -403,8 +382,6 @@
 
       const openSelect = () => {
         selectContent.setAttribute('data-state','open');
-        window.requestAnimationFrame(()=>{
-        });
       };
       const closeSelect = () => {
         selectContent.setAttribute('data-state','closed');
@@ -416,7 +393,6 @@
         if (isOpen) closeSelect(); else openSelect();
       });
 
-      // Close when clicking outside (within shadow root)
       shadow.addEventListener('click', (ev) => {
         const path = ev.composedPath();
         if (!path.includes(selectRoot)) {
@@ -483,10 +459,8 @@
 
     setInterval(async () => {
       try {
-        const oldRates = ratesCache ? Object.assign({}, ratesCache) : null;
         await fetchRate();
         updateAllConvertedSpans();
-        console.log('[CNY→USD] rates updated; refreshed conversions');
       } catch (e) {
         console.warn('[CNY→USD] periodic rate fetch failed', e);
       }
